@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,9 +46,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { api, AdminOverview } from "../api";
+import { api, AdminUsersPage } from "../api";
 import { fullName } from "../shared/format";
 import { toPersianDigitsSafe, toJalaliLong } from "@/lib/jalali";
+import { cn } from "@/lib/utils";
 import { EmptyState, ProfileStatusBadge, RoleBadge, SectionHeader, type AdminUser } from "./panel-bits";
 import {
   UserPlus,
@@ -60,20 +61,22 @@ import {
   Trash2,
   Loader2,
   Users,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 interface UsersTabProps {
-  users: AdminOverview["users"];
+  /** refresh panel-level overview (stats) after mutations */
   onRefresh: () => void;
+  /** report the total user count (for the tab badge) */
+  onTotalChange?: (total: number) => void;
 }
 
-const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
-
-function toEnglishDigitsLocal(s: string): string {
-  return s
-    .replace(/[۰-۹]/g, (d) => String(FA_DIGITS.indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
-}
+const PAGE_SIZE = 10;
 
 const ROLE_OPTIONS = [
   { value: "TEACHER", label: "معلم" },
@@ -97,12 +100,20 @@ interface RegisterResult {
   };
 }
 
-export function UsersTab({ users, onRefresh }: UsersTabProps) {
+export function UsersTab({ onRefresh, onTotalChange }: UsersTabProps) {
   const { toast } = useToast();
 
-  // --- filters ---
+  // --- filters (search is debounced 400ms, filtering happens server-side) ---
   const [query, setQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
+
+  // --- paginated data ---
+  const [data, setData] = useState<AdminUsersPage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   // --- register dialog ---
   const [regOpen, setRegOpen] = useState(false);
@@ -123,19 +134,60 @@ export function UsersTab({ users, onRefresh }: UsersTabProps) {
   const [deleteUser, setDeleteUser] = useState<AdminUser | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const filtered = useMemo(() => {
-    const q = toEnglishDigitsLocal(query.trim().toLowerCase());
-    return users.filter((u) => {
-      if (roleFilter !== "ALL" && u.role !== roleFilter) return false;
-      if (!q) return true;
-      return (
-        `${u.name ?? ""} ${u.lastName ?? ""}`.toLowerCase().includes(q) ||
-        toEnglishDigitsLocal(u.mobile).includes(q) ||
-        (u.teacherCode ?? u.studentCode ?? "").toLowerCase().includes(q) ||
-        (u.instituteName ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [users, query, roleFilter]);
+  // debounce the search input; a new query always jumps back to page 1
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setDebouncedQ(query.trim());
+      setPage(1);
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [query]);
+
+  // paginated fetch (server-side q + role filtering)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+      });
+      if (debouncedQ) params.set("q", debouncedQ);
+      if (roleFilter !== "ALL") params.set("role", roleFilter);
+      const res = await api<AdminUsersPage>(`/api/admin/users?${params.toString()}`);
+      if (cancelled) return;
+      if (res.ok && res.data) {
+        // last row of the last page deleted → step back to the new last page
+        if (res.data.page > res.data.pageCount && res.data.pageCount >= 1) {
+          setPage(res.data.pageCount);
+          return;
+        }
+        setData(res.data);
+        onTotalChange?.(res.data.total);
+      } else {
+        setError(res.error ?? "خطا در بارگذاری کاربران");
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [page, debouncedQ, roleFilter, reloadNonce, onTotalChange]);
+
+  const filtersActive = debouncedQ !== "" || roleFilter !== "ALL";
+
+  const goToPage = (p: number) => {
+    const max = data?.pageCount ?? 1;
+    setPage(Math.min(Math.max(1, p), max));
+  };
+
+  const resetFilters = () => {
+    setQuery("");
+    setDebouncedQ("");
+    setRoleFilter("ALL");
+    setPage(1);
+  };
 
   const submitRegister = async () => {
     if (!regMobile.trim() || !regRole) return;
@@ -170,6 +222,7 @@ export function UsersTab({ users, onRefresh }: UsersTabProps) {
     setRegName("");
     setRegLastName("");
     onRefresh();
+    setReloadNonce((n) => n + 1);
   };
 
   const startEdit = (u: AdminUser) => {
@@ -198,6 +251,7 @@ export function UsersTab({ users, onRefresh }: UsersTabProps) {
     toast({ title: res.data?.message ?? "کاربر ویرایش شد" });
     setEditUser(null);
     onRefresh();
+    setReloadNonce((n) => n + 1);
   };
 
   const submitDelete = async () => {
@@ -214,13 +268,20 @@ export function UsersTab({ users, onRefresh }: UsersTabProps) {
     toast({ title: res.data?.message ?? "کاربر حذف شد" });
     setDeleteUser(null);
     onRefresh();
+    setReloadNonce((n) => n + 1);
   };
 
   return (
     <section aria-label="مدیریت کاربران">
       <SectionHeader
         title="کاربران سامانه"
-        description={`${toPersianDigitsSafe(filtered.length)} از ${toPersianDigitsSafe(users.length)} کاربر`}
+        description={
+          data
+            ? filtersActive
+              ? `${toPersianDigitsSafe(data.total)} نتیجه`
+              : `مجموع ${toPersianDigitsSafe(data.total)} کاربر`
+            : "در حال بارگذاری…"
+        }
         actions={
           <Button className="h-11 cursor-pointer gap-1.5" onClick={() => setRegOpen(true)}>
             <UserPlus className="size-4" />
@@ -241,7 +302,14 @@ export function UsersTab({ users, onRefresh }: UsersTabProps) {
             aria-label="جستجوی کاربران"
           />
         </div>
-        <Select value={roleFilter} onValueChange={setRoleFilter} dir="rtl">
+        <Select
+          value={roleFilter}
+          onValueChange={(v) => {
+            setRoleFilter(v);
+            setPage(1);
+          }}
+          dir="rtl"
+        >
           <SelectTrigger className="w-full sm:w-44 h-11 bg-card cursor-pointer" aria-label="فیلتر نقش">
             <SelectValue />
           </SelectTrigger>
@@ -256,41 +324,69 @@ export function UsersTab({ users, onRefresh }: UsersTabProps) {
         </Select>
       </div>
 
-      {users.length === 0 ? (
-        <EmptyState
-          icon={<Users className="size-6" />}
-          title="هنوز کاربری ثبت نشده است"
-          description="با دکمه «ثبت کاربر» می‌توانید معلمان، دانش‌آموزان و مدیران آموزشگاه را به‌صورت دستی ثبت کنید."
-          action={
-            <Button className="h-11 cursor-pointer gap-1.5" onClick={() => setRegOpen(true)}>
-              <UserPlus className="size-4" />
-              ثبت کاربر
-            </Button>
-          }
-        />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={<UserRoundSearch className="size-6" />}
-          title="نتیجه‌ای یافت نشد"
-          description="عبارت دیگری را امتحان کنید یا فیلترها را بازنشانی کنید."
-          action={
-            <Button
-              variant="outline"
-              className="h-11 cursor-pointer gap-1.5"
-              onClick={() => {
-                setQuery("");
-                setRoleFilter("ALL");
-              }}
-            >
-              <RotateCcw className="size-4" />
-              بازنشانی فیلترها
-            </Button>
-          }
-        />
+      {error && !data ? (
+        <div className="rounded-2xl border border-dashed border-border/80 bg-card/40 p-10 text-center">
+          <AlertTriangle className="mx-auto size-10 text-amber-600" strokeWidth={2} />
+          <div className="font-bold mt-3">خطا در بارگذاری کاربران</div>
+          <p className="text-sm text-muted-foreground mt-1.5 leading-6">{error}</p>
+          <Button
+            variant="outline"
+            className="mt-5 h-11 cursor-pointer gap-1.5"
+            onClick={() => setReloadNonce((n) => n + 1)}
+          >
+            <RefreshCw className="size-4" />
+            تلاش مجدد
+          </Button>
+        </div>
+      ) : loading && !data ? (
+        <div className="rounded-xl border border-border/80 overflow-hidden">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Skeleton
+              key={i}
+              className="h-12 rounded-none border-b border-border/60 last:border-0"
+            />
+          ))}
+        </div>
+      ) : !data || data.users.length === 0 ? (
+        filtersActive ? (
+          <EmptyState
+            icon={<UserRoundSearch className="size-6" />}
+            title="نتیجه‌ای یافت نشد"
+            description="عبارت دیگری را امتحان کنید یا فیلترها را بازنشانی کنید."
+            action={
+              <Button
+                variant="outline"
+                className="h-11 cursor-pointer gap-1.5"
+                onClick={resetFilters}
+              >
+                <RotateCcw className="size-4" />
+                بازنشانی فیلترها
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={<Users className="size-6" />}
+            title="هنوز کاربری ثبت نشده است"
+            description="با دکمه «ثبت کاربر» می‌توانید معلمان، دانش‌آموزان و مدیران آموزشگاه را به‌صورت دستی ثبت کنید."
+            action={
+              <Button className="h-11 cursor-pointer gap-1.5" onClick={() => setRegOpen(true)}>
+                <UserPlus className="size-4" />
+                ثبت کاربر
+              </Button>
+            }
+          />
+        )
       ) : (
-        <div className="rounded-xl border border-border/80 bg-card overflow-hidden">
-          <div className="max-h-[480px] overflow-auto scroll-samic">
-            <Table>
+        <div className="space-y-4">
+          <div
+            className={cn(
+              "rounded-xl border border-border/80 bg-card overflow-hidden transition-opacity",
+              loading && "opacity-50 pointer-events-none"
+            )}
+          >
+            <div className="max-h-[480px] overflow-auto scroll-samic">
+              <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="text-right">کاربر</TableHead>
@@ -305,7 +401,7 @@ export function UsersTab({ users, onRefresh }: UsersTabProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((u) => (
+                {data.users.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell>
                       <div className="font-medium">{fullName(u.name, u.lastName)}</div>
@@ -380,7 +476,64 @@ export function UsersTab({ users, onRefresh }: UsersTabProps) {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </div>
+
+          {/* pagination */}
+          {data.total > 0 && (
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
+              <p className="text-xs text-muted-foreground tabular-nums">
+                صفحه {toPersianDigitsSafe(data.page)} از {toPersianDigitsSafe(data.pageCount)} —{" "}
+                {toPersianDigitsSafe(data.total)} کاربر
+              </p>
+              <div className="flex items-center gap-1.5">
+                {data.pageCount > 5 && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-9 cursor-pointer"
+                    disabled={data.page <= 1 || loading}
+                    onClick={() => goToPage(1)}
+                    aria-label="اولین صفحه"
+                  >
+                    <ChevronsRight className="size-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-9 cursor-pointer"
+                  disabled={data.page <= 1 || loading}
+                  onClick={() => goToPage(data.page - 1)}
+                  aria-label="صفحه قبل"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-9 cursor-pointer"
+                  disabled={data.page >= data.pageCount || loading}
+                  onClick={() => goToPage(data.page + 1)}
+                  aria-label="صفحه بعد"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                {data.pageCount > 5 && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-9 cursor-pointer"
+                    disabled={data.page >= data.pageCount || loading}
+                    onClick={() => goToPage(data.pageCount)}
+                    aria-label="آخرین صفحه"
+                  >
+                    <ChevronsLeft className="size-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

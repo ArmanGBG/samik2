@@ -200,6 +200,7 @@ export function StudentPanel({ user, onLogout }: StudentPanelProps) {
           key={`${activeClassId}-${detailNonce}`}
           classId={activeClassId}
           onBack={backToDashboard}
+          onLeft={backToDashboard}
         />
       ) : loading ? (
         <div className="space-y-6">
@@ -276,7 +277,7 @@ export function StudentPanel({ user, onLogout }: StudentPanelProps) {
                     aria-label="کپی شناسه دانش‌آموز"
                   >
                     {copied ? (
-                      <Check className="size-4 text-emerald-600" />
+                      <Check className="size-4 text-forest-deep" />
                     ) : (
                       <Copy className="size-4" />
                     )}
@@ -491,7 +492,7 @@ export function StudentPanel({ user, onLogout }: StudentPanelProps) {
                         </div>
                       )}
                       <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                        <span className="inline-flex items-center rounded-full border border-emerald-500/25 bg-emerald-500/12 text-emerald-700 px-2.5 py-0.5 text-[11px] font-semibold">
+                        <span className="inline-flex items-center rounded-full border border-forest/25 bg-forest/12 text-forest-deep px-2.5 py-0.5 text-[11px] font-semibold">
                           حضور {toPersianDigitsSafe(cls.present)}
                         </span>
                         <span className="inline-flex items-center rounded-full border border-red-500/25 bg-red-500/10 text-red-600 px-2.5 py-0.5 text-[11px] font-semibold">

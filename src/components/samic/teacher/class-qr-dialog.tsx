@@ -74,7 +74,7 @@ export function ClassQrDialog({ open, onOpenChange, cls }: ClassQrDialogProps) {
             onClick={onCopy}
           >
             {copied ? (
-              <Check className="size-4 text-emerald-600 dark:text-emerald-400" />
+              <Check className="size-4 text-forest-deep dark:text-forest-soft" />
             ) : (
               <Copy className="size-4" />
             )}

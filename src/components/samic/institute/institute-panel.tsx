@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { ClassesTab } from "./classes-tab";
 import { TeachersTab } from "./teachers-tab";
 import { StudentsTab } from "./students-tab";
+import { InstituteClassDetail } from "./class-detail";
 import {
   Building2,
   GraduationCap,
@@ -32,6 +33,8 @@ export function InstitutePanel({ user, onLogout }: InstitutePanelProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeClassId, setActiveClassId] = useState<string | null>(null);
+  const [detailNonce, setDetailNonce] = useState(0);
 
   const load = useCallback(() => {
     return api<InstituteOverview>("/api/institute/overview").then((res) => {
@@ -55,9 +58,27 @@ export function InstitutePanel({ user, onLogout }: InstitutePanelProps) {
     void load();
   };
 
+  const openClass = (classId: string) => {
+    setActiveClassId(classId);
+    setDetailNonce((n) => n + 1);
+  };
+
+  const backToClasses = () => {
+    setActiveClassId(null);
+    window.scrollTo({ top: 0 });
+    // keep the list fresh (sessions/students may have changed meanwhile)
+    void load();
+  };
+
   return (
     <PanelShell user={user} activeTitle="پنل مدیریت آموزشگاه" onLogout={onLogout}>
-      {loading ? (
+      {activeClassId ? (
+        <InstituteClassDetail
+          key={`${activeClassId}-${detailNonce}`}
+          classId={activeClassId}
+          onBack={backToClasses}
+        />
+      ) : loading ? (
         <PanelSkeleton />
       ) : error || !data ? (
         <div className="rounded-2xl border border-dashed border-border/80 p-10 sm:p-14 text-center">
@@ -139,7 +160,7 @@ export function InstitutePanel({ user, onLogout }: InstitutePanelProps) {
             </TabsList>
 
             <TabsContent value="classes" className="mt-4">
-              <ClassesTab classes={data.classes} onRefresh={load} />
+              <ClassesTab classes={data.classes} onRefresh={load} onOpenClass={openClass} />
             </TabsContent>
             <TabsContent value="teachers" className="mt-4">
               <TeachersTab teachers={data.teachers} onRefresh={load} />

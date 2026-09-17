@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +23,8 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Loader2,
+  LogOut,
   School,
   User,
   X,
@@ -20,19 +32,25 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toJalaliLong, toPersianDigitsSafe } from "@/lib/jalali";
+import { useToast } from "@/hooks/use-toast";
 import { api, StudentClassDetail as StudentClassDetailType } from "../api";
 import { AttendanceBadge, StatCard } from "../shared/stat-card";
 
 interface StudentClassDetailProps {
   classId: string;
   onBack: () => void;
+  /** called after the student successfully left the class */
+  onLeft: () => void;
 }
 
 /** کارنامه کلاس — attendance + assignment history of my sessions (newest first). */
-export function StudentClassDetail({ classId, onBack }: StudentClassDetailProps) {
+export function StudentClassDetail({ classId, onBack, onLeft }: StudentClassDetailProps) {
+  const { toast } = useToast();
   const [detail, setDetail] = useState<StudentClassDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +88,24 @@ export function StudentClassDetail({ classId, onBack }: StudentClassDetailProps)
       </div>
     );
   }
+
+  /** leave the class — confirmed via AlertDialog */
+  const confirmLeave = async () => {
+    if (leaving) return;
+    setLeaving(true);
+    const res = await api<{ message: string }>(
+      `/api/student/classes/${encodeURIComponent(classId)}/leave`,
+      { method: "POST" }
+    );
+    setLeaving(false);
+    if (res.ok) {
+      setLeaveOpen(false);
+      toast({ title: res.data?.message ?? "از کلاس خارج شدید" });
+      onLeft();
+    } else {
+      toast({ title: res.error ?? "خطا در خروج از کلاس", variant: "destructive" });
+    }
+  };
 
   if (error || !detail) {
     return (
@@ -214,7 +250,7 @@ export function StudentClassDetail({ classId, onBack }: StudentClassDetailProps)
                           className={cn(
                             "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
                             s.assignmentDone
-                              ? "bg-emerald-500/12 text-emerald-700 border-emerald-500/25"
+                              ? "bg-forest/12 text-forest-deep border-forest/25"
                               : "bg-red-500/10 text-red-600 border-red-500/25"
                           )}
                         >
@@ -234,6 +270,72 @@ export function StudentClassDetail({ classId, onBack }: StudentClassDetailProps)
           </Card>
         )}
       </section>
+
+      {/* leave class */}
+      <section aria-label="خروج از کلاس">
+        <Card className="border-destructive/25 bg-card">
+          <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="size-10 rounded-xl bg-red-500/10 text-red-600 grid place-items-center shrink-0">
+                <LogOut className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-bold text-sm">قصد خروج از این کلاس را دارید؟</div>
+                <p className="text-xs text-muted-foreground leading-6 mt-1">
+                  تاریخچه حضوروغیاب شما حفظ می‌شود، اما برای بازگشت باید دوباره درخواست عضویت بدهید.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setLeaveOpen(true)}
+              disabled={leaving}
+              className="h-11 gap-2 cursor-pointer shrink-0 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+            >
+              <LogOut className="size-4" />
+              خروج از کلاس
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* leave confirmation */}
+      <AlertDialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+        <AlertDialogContent className="sm:max-w-md rounded-2xl" dir="rtl">
+          <AlertDialogHeader className="text-right sm:text-right">
+            <AlertDialogTitle className="flex items-center gap-2">
+              <span className="size-9 rounded-xl bg-red-500/10 text-red-600 grid place-items-center shrink-0">
+                <LogOut className="size-4.5" />
+              </span>
+              خروج از کلاس
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-right leading-6">
+              پس از خروج، تاریخچه حضوروغیاب شما در این کلاس حفظ می‌شود اما کلاس از لیست شما حذف
+              می‌شود و برای بازگشت باید دوباره درخواست عضویت بدهید.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="h-11 cursor-pointer" disabled={leaving}>
+              انصراف
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="h-11 cursor-pointer bg-destructive text-white hover:bg-destructive/90 flex items-center gap-1.5"
+              disabled={leaving}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmLeave();
+              }}
+            >
+              {leaving ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <LogOut className="size-4" />
+              )}
+              {leaving ? "در حال خروج…" : "خروج از کلاس"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -16,26 +16,34 @@
 
 ### Color Palette
 
+> **OVERRIDE (2026-09-18):** Live theme was re-branded per user's ColorHunt palette —
+> soft زرشکی (burgundy) + شیری (cream). The table below reflects the ACTIVE palette
+> implemented in `src/app/globals.css` (oklch tokens). Semantic status colors:
+> present/success = forest green `#2D6A4F` family, late = amber, absent/destructive = red.
+
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#2563EB` | `--color-primary` |
-| On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#3B82F6` | `--color-secondary` |
-| On Secondary | `#000000` | `--color-on-secondary` |
-| Accent/CTA | `#EA580C` | `--color-accent` |
-| On Accent/CTA | `#000000` | `--color-on-accent` |
-| Background | `#F8FAFC` | `--color-background` |
-| Foreground | `#1E293B` | `--color-foreground` |
-| Card | `#FFFFFF` | `--color-card` |
-| Card Foreground | `#1E293B` | `--color-card-foreground` |
-| Muted | `#E9EFF8` | `--color-muted` |
-| Muted Foreground | `#475569` | `--color-muted-foreground` |
-| Border | `#E2E8F0` | `--color-border` |
-| Destructive | `#DC2626` | `--color-destructive` |
-| On Destructive | `#FFFFFF` | `--color-on-destructive` |
-| Ring | `#2563EB` | `--color-ring` |
+| Primary (زرشکی) | `#6A0C24` | `--primary` (oklch 0.342 0.125 14) |
+| On Primary (cream white) | `#F8F1E8` | `--primary-foreground` |
+| Mid Burgundy (selected/today/ring) | `#9A3550` | `--ring`, `--accent-foreground` |
+| Soft Rose Tint (accent bg) | `#F5E3E6` | `--accent` |
+| Terracotta (chart-2) | `#DF7A5E` | `--chart-2` |
+| Forest Green (present/success) | `#2D6A4F` | semantic classes `forest*` (@theme) |
+| Background (شیری light) | `#FCF8F1` | `--background` |
+| Foreground (warm dark) | `#3D2B2E` | `--foreground` |
+| Card (warm white) | `#FFFEFA` | `--card` |
+| Muted (cream beige) | `#F2EDE3` | `--muted` |
+| Muted Foreground (warm gray) | `#8A7A7D` | `--muted-foreground` |
+| Border (warm beige) | `#E8DFD2` | `--border` |
+| Destructive | standard red | `--destructive` |
+| Cream (palette band 3) | `#F1E4D3` | reference only |
+| Dark bg (warm maroon) | `#221418` | `.dark --background` |
+| Dark primary (soft rose) | `#C77D93` | `.dark --primary` |
 
-**Color Notes:** Trust blue + orange CTA contrast [Accent adjusted from #F97316]
+**Color Notes:** User-provided ColorHunt palette (زرشکی #6A0C24 / terracotta #DF7A5E /
+شیری #F1E4D3 / forest #1C4D3F) — implemented VERY muted: cream-tinted backgrounds,
+low-chroma supporting tones, dark elegant burgundy primary. Dark mode = warm maroon,
+never cold blue-gray.
 
 ### Typography
 

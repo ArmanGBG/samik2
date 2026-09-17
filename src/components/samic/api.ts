@@ -256,6 +256,78 @@ export interface AdminOverview {
   }[];
 }
 
+// ---------- Class analytics (teacher stats tab) ----------
+export interface ClassStats {
+  overview: {
+    totalStudents: number;
+    totalSessions: number;
+    markedCount: number; // total marked attendance rows (PRESENT+ABSENT+LATE)
+    presentRate: number; // 0..100 (of marked)
+    assignmentRate: number; // 0..100
+  };
+  sessionTrend: {
+    sessionId: string;
+    name: string;
+    sessionNum: number;
+    PRESENT: number;
+    ABSENT: number;
+    LATE: number;
+    UNMARKED: number;
+  }[];
+  students: {
+    id: string;
+    studentCode: string | null;
+    name: string | null;
+    lastName: string | null;
+    profileCompleted: boolean;
+    present: number;
+    absent: number;
+    late: number;
+    unmarked: number;
+    attendanceRate: number; // 0..100 (of marked; 100 when nothing marked)
+    assignmentsDone: number;
+    assignmentsTotal: number;
+  }[];
+}
+
+// ---------- Institute class drilldown ----------
+export interface InstituteClassDetail {
+  id: string;
+  name: string;
+  schedule: string | null;
+  createdAt: string;
+  teacher: { id: string; name: string; teacherCode: string | null } | null;
+  students: {
+    id: string;
+    name: string | null;
+    lastName: string | null;
+    mobile: string;
+    studentCode: string | null;
+    profileCompleted: boolean;
+    educationLevel: string | null;
+    joinedAtSessionNum: number;
+    present: number;
+    absent: number;
+    late: number;
+  }[];
+  sessions: {
+    id: string;
+    name: string;
+    sessionNum: number;
+    date: string;
+    attendance: { PRESENT: number; ABSENT: number; LATE: number; UNMARKED: number };
+  }[];
+}
+
+// ---------- Admin users pagination ----------
+export interface AdminUsersPage {
+  users: AdminOverview["users"];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
 // ---------- Education level labels ----------
 const FA = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹", "۱۰", "۱۱", "۱۲"];
 const fa = (n: number | string) => String(n).replace(/[0-9]+/g, (m) => m.split("").map((d) => FA[+d]).join(""));

@@ -102,13 +102,13 @@ export function LandingView({ onAuthed }: LandingViewProps) {
             </Button>
           </div>
 
-          {/* Hero mockup */}
+          {/* Hero mockup — frosted glass card over the grid backdrop */}
           <div className="mx-auto mt-12 max-w-3xl">
-            <div className="rounded-2xl border border-border/80 bg-card shadow-xl shadow-primary/5 p-4 sm:p-5 text-right">
+            <div className="glass-card rounded-2xl p-4 sm:p-5 text-right">
               <div className="flex items-center gap-2 mb-4">
                 <span className="size-2.5 rounded-full bg-red-400/70" />
                 <span className="size-2.5 rounded-full bg-amber-400/70" />
-                <span className="size-2.5 rounded-full bg-emerald-400/70" />
+                <span className="size-2.5 rounded-full bg-forest-soft/70" />
                 <span className="mr-auto text-[11px] text-muted-foreground">کلاس ریاضیات دهم · جلسه {toPersianDigitsSafe(4)}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center text-[10px] sm:text-xs">
@@ -145,9 +145,9 @@ export function LandingView({ onAuthed }: LandingViewProps) {
           </div>
 
           <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
-            <Card className="border-border/80 hover:border-primary/30 hover:shadow-md transition-all group">
+            <Card className="border-border/80 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md transition-all group">
               <CardContent className="p-6 space-y-4">
-                <div className="size-12 rounded-2xl bg-primary/10 text-primary grid place-items-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                <div className="size-12 rounded-2xl bg-gradient-to-b from-primary/15 to-primary/5 text-primary ring-1 ring-primary/20 grid place-items-center group-hover:bg-none group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <QrCode className="size-6" />
                 </div>
                 <h3 className="font-bold text-lg">حضوروغیاب با QR کد</h3>
@@ -158,9 +158,9 @@ export function LandingView({ onAuthed }: LandingViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="border-border/80 hover:border-primary/30 hover:shadow-md transition-all group">
+            <Card className="border-border/80 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md transition-all group">
               <CardContent className="p-6 space-y-4">
-                <div className="size-12 rounded-2xl bg-primary/10 text-primary grid place-items-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                <div className="size-12 rounded-2xl bg-gradient-to-b from-primary/15 to-primary/5 text-primary ring-1 ring-primary/20 grid place-items-center group-hover:bg-none group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <ClipboardCheck className="size-6" />
                 </div>
                 <h3 className="font-bold text-lg">پیگیری خودکار تکالیف</h3>
@@ -171,9 +171,9 @@ export function LandingView({ onAuthed }: LandingViewProps) {
               </CardContent>
             </Card>
 
-            <Card className="border-border/80 hover:border-primary/30 hover:shadow-md transition-all group">
+            <Card className="border-border/80 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md transition-all group">
               <CardContent className="p-6 space-y-4">
-                <div className="size-12 rounded-2xl bg-primary/10 text-primary grid place-items-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                <div className="size-12 rounded-2xl bg-gradient-to-b from-primary/15 to-primary/5 text-primary ring-1 ring-primary/20 grid place-items-center group-hover:bg-none group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <Wallet className="size-6" />
                 </div>
                 <h3 className="font-bold text-lg">تسویه مالی شفاف</h3>
@@ -218,7 +218,7 @@ export function LandingView({ onAuthed }: LandingViewProps) {
                 points: ["شناسه STU شخصی", "پذیرش/رد دعوت‌ها", "کارنامه هر کلاس"],
               },
             ].map((a, i) => (
-              <Card key={i} className="border-border/80 hover:border-primary/30 hover:shadow-md transition-all">
+              <Card key={i} className="border-border/80 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md transition-all">
                 <CardContent className="p-6 space-y-4">
                   <div className="size-12 rounded-2xl bg-accent text-accent-foreground grid place-items-center border border-primary/15">
                     {a.icon}
@@ -313,7 +313,7 @@ export function LandingView({ onAuthed }: LandingViewProps) {
               </div>
             </div>
             <div className="flex-1" />
-            <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-foreground/60">
               <a href="#" className="hover:text-foreground transition-colors flex items-center gap-1.5">
                 <Info className="size-3.5" />
                 درباره سامیک
@@ -332,7 +332,7 @@ export function LandingView({ onAuthed }: LandingViewProps) {
               </a>
             </nav>
           </div>
-          <div className="mt-6 pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div className="mt-6 pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-foreground/60">
             <span>سامیک — نمونه ساخته‌شده برای نمایش مدیریت آموزش حضوری</span>
             <span>{jalaliYear()} © تمامی حقوق محفوظ است</span>
           </div>

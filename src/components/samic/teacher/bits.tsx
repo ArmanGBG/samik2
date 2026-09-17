@@ -83,7 +83,7 @@ export function CodeChip({
     >
       <span className="tracking-wide">{code}</span>
       {copied ? (
-        <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
+        <Check className="size-3 text-forest-deep dark:text-forest-soft" />
       ) : (
         <Copy className="size-3" />
       )}
@@ -114,7 +114,7 @@ export function AttChip({
     <span
       className={cn(
         "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums",
-        tone === "present" && "border-emerald-500/25 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+        tone === "present" && "border-forest/25 bg-forest/12 text-forest-deep dark:text-forest-soft",
         tone === "absent" && "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-400",
         tone === "late" && "border-amber-500/25 bg-amber-500/12 text-amber-700 dark:text-amber-400",
         tone === "muted" && "border-border bg-muted/60 text-muted-foreground",

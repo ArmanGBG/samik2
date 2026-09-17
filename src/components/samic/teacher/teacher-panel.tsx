@@ -49,6 +49,7 @@ export function TeacherPanel({ user, onLogout }: TeacherPanelProps) {
           classId={view.classId}
           onBack={() => setView({ kind: "dashboard" })}
           onOpenSession={(sessionId) => setView({ kind: "session", sessionId, classId: view.classId })}
+          onDeleted={() => setView({ kind: "dashboard" })}
         />
       ) : null}
 

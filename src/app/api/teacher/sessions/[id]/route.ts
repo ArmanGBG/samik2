@@ -56,3 +56,23 @@ export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: stri
     },
   });
 });
+
+// DELETE /api/teacher/sessions/[id] — delete a session (owner teacher only)
+// Deletes attendances → session. Session-number gaps are OK: the next created
+// session still gets MAX(sessionNum) + 1.
+export const DELETE = route(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
+  const user = await requireRole("TEACHER");
+  const { id } = await ctx.params;
+
+  const session = await db.session.findFirst({
+    where: { id, class: { teacherId: user.id } },
+  });
+  if (!session) return fail("جلسه یافت نشد", 404);
+
+  await db.$transaction([
+    db.attendance.deleteMany({ where: { sessionId: session.id } }),
+    db.session.delete({ where: { id: session.id } }),
+  ]);
+
+  return ok({ message: "جلسه حذف شد" });
+});

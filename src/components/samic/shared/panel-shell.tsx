@@ -102,7 +102,7 @@ export function PanelShell({ user, activeTitle, onLogout, children, headerExtra 
       <main className="flex-1 mx-auto w-full max-w-6xl px-4 sm:px-6 py-6 sm:py-8">{children}</main>
 
       <footer className="border-t bg-card mt-auto">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center justify-between text-xs text-foreground/60">
           <span>سامیک — سامانه مدیریت آموزش حضوری</span>
           <span>{jalaliYear()} © تمامی حقوق محفوظ است</span>
         </div>

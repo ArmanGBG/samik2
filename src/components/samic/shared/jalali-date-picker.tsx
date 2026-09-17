@@ -16,10 +16,13 @@ interface JalaliDatePickerProps {
 
 /** Jalali (Shamsi) date picker — react-multi-date-picker wrapper.
  *  NOTE: DateObject MUST receive the imported `persian` calendar OBJECT —
- *  passing the string "persian" silently keeps the Gregorian calendar. */
+ *  passing the string "persian" silently keeps the Gregorian calendar.
+ *  The `value` DateObject uses the persian_fa locale so the INPUT renders
+ *  Persian digits (۱۴۰۵/۰۶/۲۶); onChange still emits English "YYYY/MM/DD"
+ *  via the persian_en conversion below. */
 export function JalaliDatePicker({ value, onChange, label, id }: JalaliDatePickerProps) {
   const dateObject = value
-    ? new DateObject({ date: value, calendar: persian, locale: persian_en, format: "YYYY/MM/DD" })
+    ? new DateObject({ date: value, calendar: persian, locale: persian_fa, format: "YYYY/MM/DD" })
     : "";
 
   return (
@@ -51,7 +54,7 @@ export function JalaliDatePicker({ value, onChange, label, id }: JalaliDatePicke
           editable
           containerClassName="w-full"
           inputClass="w-full h-11 rounded-lg border border-input bg-card px-3 pr-10 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer"
-          placeholder="1403/08/15"
+          placeholder="۱۴۰۳/۰۸/۱۵"
         />
         <CalendarDays className="size-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
       </div>

@@ -34,6 +34,10 @@ export function SuperAdminPanel({ user, onLogout }: SuperAdminPanelProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usersTotal, setUsersTotal] = useState<number | null>(null);
+
+  /** stable callback — the users tab reports its (filtered) total for the tab badge */
+  const handleUsersTotal = useCallback((n: number) => setUsersTotal(n), []);
 
   const load = useCallback(() => {
     return api<AdminOverview>("/api/admin/overview").then((res) => {
@@ -136,7 +140,7 @@ export function SuperAdminPanel({ user, onLogout }: SuperAdminPanelProps) {
               <TabsTrigger value="users" className="h-10 cursor-pointer gap-1.5">
                 <Users className="size-4" />
                 کاربران
-                <CountHint count={data.users.length} />
+                <CountHint count={usersTotal} />
               </TabsTrigger>
               <TabsTrigger value="institutes" className="h-10 cursor-pointer gap-1.5">
                 <Building2 className="size-4" />
@@ -151,7 +155,7 @@ export function SuperAdminPanel({ user, onLogout }: SuperAdminPanelProps) {
             </TabsList>
 
             <TabsContent value="users" className="mt-4">
-              <UsersTab users={data.users} onRefresh={load} />
+              <UsersTab onRefresh={load} onTotalChange={handleUsersTotal} />
             </TabsContent>
             <TabsContent value="institutes" className="mt-4">
               <InstitutesTab institutes={data.institutes} onRefresh={load} />
@@ -166,7 +170,8 @@ export function SuperAdminPanel({ user, onLogout }: SuperAdminPanelProps) {
   );
 }
 
-function CountHint({ count }: { count: number }) {
+function CountHint({ count }: { count: number | null }) {
+  if (count === null) return null;
   return (
     <span className="text-[10px] text-muted-foreground tabular-nums">
       {toPersianDigitsSafe(count)}

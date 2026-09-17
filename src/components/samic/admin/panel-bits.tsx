@@ -90,7 +90,7 @@ export function ProfileStatusBadge({ completed }: { completed: boolean }) {
   return completed ? (
     <Badge
       variant="outline"
-      className="bg-emerald-500/10 text-emerald-700 border-emerald-500/25 font-semibold"
+      className="bg-forest/10 text-forest-deep border-forest/25 font-semibold"
     >
       کامل
     </Badge>

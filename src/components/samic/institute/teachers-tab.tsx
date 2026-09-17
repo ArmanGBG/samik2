@@ -113,7 +113,7 @@ export function TeachersTab({ teachers, onRefresh }: TeachersTabProps) {
                         {t.profileCompleted ? (
                           <Badge
                             variant="outline"
-                            className="shrink-0 bg-emerald-500/10 text-emerald-700 border-emerald-500/25"
+                            className="shrink-0 bg-forest/10 text-forest-deep border-forest/25"
                           >
                             پروفایل کامل
                           </Badge>

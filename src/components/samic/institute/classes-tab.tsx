@@ -26,6 +26,8 @@ import {
   UserRound,
   UserPlus,
   CalendarDays,
+  ChevronLeft,
+  Eye,
   Loader2,
 } from "lucide-react";
 
@@ -40,9 +42,10 @@ interface AddStudentResult {
 interface ClassesTabProps {
   classes: InstituteOverview["classes"];
   onRefresh: () => void;
+  onOpenClass: (classId: string) => void;
 }
 
-export function ClassesTab({ classes, onRefresh }: ClassesTabProps) {
+export function ClassesTab({ classes, onRefresh, onOpenClass }: ClassesTabProps) {
   const { toast } = useToast();
 
   // --- create class dialog ---
@@ -64,6 +67,11 @@ export function ClassesTab({ classes, onRefresh }: ClassesTabProps) {
     } catch {
       toast({ title: "کپی شناسه انجام نشد", variant: "destructive" });
     }
+  };
+
+  const openClass = (classId: string) => {
+    onOpenClass(classId);
+    window.scrollTo({ top: 0 });
   };
 
   const submitCreate = async () => {
@@ -122,7 +130,7 @@ export function ClassesTab({ classes, onRefresh }: ClassesTabProps) {
     <section aria-label="مدیریت کلاس‌ها">
       <SectionHeader
         title="کلاس‌های آموزشگاه"
-        description={`${toPersianDigitsSafe(classes.length)} کلاس فعال`}
+        description={`${toPersianDigitsSafe(classes.length)} کلاس فعال — برای مشاهده جلسات و دانش‌آموزان روی هر کلاس بزنید`}
         actions={
           <Button
             className="h-11 cursor-pointer gap-1.5"
@@ -151,11 +159,21 @@ export function ClassesTab({ classes, onRefresh }: ClassesTabProps) {
           {classes.map((cls) => (
             <Card
               key={cls.id}
-              className="border-border/80 hover:border-primary/30 hover:shadow-sm transition-all"
+              role="button"
+              tabIndex={0}
+              aria-label={`مشاهده جزئیات کلاس ${cls.name}`}
+              onClick={() => openClass(cls.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openClass(cls.id);
+                }
+              }}
+              className="cursor-pointer border-border/80 hover:border-primary/30 hover:shadow-md transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary/40"
             >
               <CardContent className="p-4 sm:p-5 space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="size-11 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+                  <div className="size-11 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                     <School className="size-5" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -165,7 +183,10 @@ export function ClassesTab({ classes, onRefresh }: ClassesTabProps) {
                     <button
                       type="button"
                       dir="ltr"
-                      onClick={() => copyCode(cls.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void copyCode(cls.id);
+                      }}
                       className="mt-1 inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-primary transition-colors cursor-pointer"
                       aria-label={`کپی شناسه کلاس ${cls.id}`}
                     >
@@ -173,6 +194,7 @@ export function ClassesTab({ classes, onRefresh }: ClassesTabProps) {
                       <Copy className="size-3" />
                     </button>
                   </div>
+                  <ChevronLeft className="size-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-0.5 transition-all shrink-0 mt-1" />
                 </div>
 
                 <div className="flex items-center gap-2 text-sm min-w-0">
@@ -206,14 +228,30 @@ export function ClassesTab({ classes, onRefresh }: ClassesTabProps) {
                   </div>
                 </div>
 
-                <Button
-                  variant="outline"
-                  className="w-full h-10 cursor-pointer gap-1.5"
-                  onClick={() => setTargetClass(cls)}
-                >
-                  <UserPlus className="size-4" />
-                  افزودن دانش‌آموز
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    className="h-10 cursor-pointer gap-1.5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openClass(cls.id);
+                    }}
+                  >
+                    <Eye className="size-4" />
+                    جزئیات
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-10 cursor-pointer gap-1.5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTargetClass(cls);
+                    }}
+                  >
+                    <UserPlus className="size-4" />
+                    افزودن دانش‌آموز
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}

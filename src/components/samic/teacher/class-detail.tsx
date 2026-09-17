@@ -4,9 +4,25 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Card,
   CardContent,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -23,6 +39,8 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import {
+  AlertTriangle,
+  BarChart3,
   BookOpen,
   Building2,
   CalendarCheck,
@@ -32,8 +50,14 @@ import {
   ChevronLeft,
   Clock3,
   Inbox,
+  Loader2,
+  MoreHorizontal,
+  MoreVertical,
+  Pencil,
   Plus,
   QrCode,
+  Trash2,
+  UserMinus,
   UserPlus,
   Users,
   X,
@@ -46,14 +70,18 @@ import { AttChip, BackButton, cardActivate, CodeChip, displayName, EmptyState, G
 import { AddStudentDialog } from "./add-student-dialog";
 import { AddSessionDialog } from "./add-session-dialog";
 import { ClassQrDialog } from "./class-qr-dialog";
+import { EditClassDialog } from "./edit-class-dialog";
+import { ClassStatsTab } from "./class-stats-tab";
 
 interface ClassDetailProps {
   classId: string;
   onBack: () => void;
   onOpenSession: (sessionId: string) => void;
+  /** called after the class is successfully deleted (parent navigates back) */
+  onDeleted: () => void;
 }
 
-export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps) {
+export function ClassDetail({ classId, onBack, onOpenSession, onDeleted }: ClassDetailProps) {
   const { toast } = useToast();
   const [detail, setDetail] = useState<TeacherClassDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +92,14 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
   const [addSessionOpen, setAddSessionOpen] = useState(false);
   const [addSessionSeq, setAddSessionSeq] = useState(0);
   const [actingRequestId, setActingRequestId] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSeq, setEditSeq] = useState(0);
+  const [deleteClassOpen, setDeleteClassOpen] = useState(false);
+  const [deletingClass, setDeletingClass] = useState(false);
+  const [removeStudent, setRemoveStudent] = useState<{ id: string; name: string } | null>(null);
+  const [removingStudent, setRemovingStudent] = useState(false);
+  const [deleteSession, setDeleteSession] = useState<{ id: string; name: string } | null>(null);
+  const [deletingSession, setDeletingSession] = useState(false);
 
   const load = useCallback(() => {
     api<{ class: TeacherClassDetail }>(`/api/teacher/classes/${classId}`).then((res) => {
@@ -91,6 +127,11 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
   const openAddSession = () => {
     setAddSessionSeq((s) => s + 1);
     setAddSessionOpen(true);
+  };
+
+  const openEdit = () => {
+    setEditSeq((s) => s + 1);
+    setEditOpen(true);
   };
 
   const respondRequest = async (requestId: string, action: "APPROVE" | "REJECT") => {
@@ -153,7 +194,61 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
   }
 
   const studentRequests = detail.requests.filter((r) => r.direction === "STUDENT_REQUEST");
-  const nextSessionNumber = detail.sessions.length + 1;
+  // MAX(sessionNum)+1 — gaps (after deleting a session) are OK
+  const maxSessionNum = detail.sessions.length > 0
+    ? Math.max(...detail.sessions.map((s) => s.sessionNum))
+    : 0;
+  const nextSessionNumber = maxSessionNum + 1;
+
+  // ---------- destructive actions ----------
+
+  const confirmDeleteClass = async () => {
+    setDeletingClass(true);
+    const res = await api<{ message: string }>(`/api/teacher/classes/${classId}`, {
+      method: "DELETE",
+    });
+    setDeletingClass(false);
+    if (!res.ok) {
+      toast({ title: res.error ?? "خطا در حذف کلاس", variant: "destructive" });
+      return;
+    }
+    setDeleteClassOpen(false);
+    toast({ title: "کلاس حذف شد", description: `کلاس «${detail.name}» و تمام داده‌های آن حذف شد` });
+    onDeleted();
+  };
+
+  const confirmRemoveStudent = async () => {
+    if (!removeStudent) return;
+    setRemovingStudent(true);
+    const res = await api<{ message: string }>(
+      `/api/teacher/classes/${classId}/students/${removeStudent.id}`,
+      { method: "DELETE" }
+    );
+    setRemovingStudent(false);
+    if (!res.ok) {
+      toast({ title: res.error ?? "خطا در حذف دانش‌آموز", variant: "destructive" });
+      return;
+    }
+    setRemoveStudent(null);
+    toast({ title: "دانش‌آموز از کلاس حذف شد" });
+    load();
+  };
+
+  const confirmDeleteSession = async () => {
+    if (!deleteSession) return;
+    setDeletingSession(true);
+    const res = await api<{ message: string }>(`/api/teacher/sessions/${deleteSession.id}`, {
+      method: "DELETE",
+    });
+    setDeletingSession(false);
+    if (!res.ok) {
+      toast({ title: res.error ?? "خطا در حذف جلسه", variant: "destructive" });
+      return;
+    }
+    setDeleteSession(null);
+    toast({ title: "جلسه حذف شد" });
+    load();
+  };
 
   return (
     <div className="space-y-6">
@@ -193,15 +288,51 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
               </div>
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-full shrink-0 cursor-pointer gap-2 sm:w-auto"
-              onClick={() => setQrOpen(true)}
-            >
-              <QrCode className="size-4" />
-              QR کد کلاس
-            </Button>
+            <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 flex-1 cursor-pointer gap-2 sm:flex-none"
+                onClick={() => setQrOpen(true)}
+              >
+                <QrCode className="size-4" />
+                QR کد کلاس
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="size-11 shrink-0 cursor-pointer"
+                    aria-label="عملیات کلاس"
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="min-w-44"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <DropdownMenuItem onSelect={openEdit} className="cursor-pointer gap-2 py-2.5">
+                    <Pencil className="size-4" />
+                    ویرایش کلاس
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => setDeleteClassOpen(true)}
+                    className="cursor-pointer gap-2 py-2.5"
+                  >
+                    <Trash2 className="size-4" />
+                    حذف کلاس
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -209,17 +340,21 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
       {/* ---------- Tabs ---------- */}
       <Tabs defaultValue="students" className="gap-4">
         <TabsList className="h-11 w-full rounded-xl p-1 sm:w-auto">
-          <TabsTrigger value="students" className="gap-1.5 px-3 text-[13px] sm:px-4">
+          <TabsTrigger value="students" className="gap-1 px-2 text-[11px] sm:gap-1.5 sm:px-4 sm:text-[13px]">
             دانش‌آموزان
             <TabCount n={detail.students.length} />
           </TabsTrigger>
-          <TabsTrigger value="sessions" className="gap-1.5 px-3 text-[13px] sm:px-4">
+          <TabsTrigger value="sessions" className="gap-1 px-2 text-[11px] sm:gap-1.5 sm:px-4 sm:text-[13px]">
             جلسات
             <TabCount n={detail.sessions.length} />
           </TabsTrigger>
-          <TabsTrigger value="requests" className="gap-1.5 px-3 text-[13px] sm:px-4">
+          <TabsTrigger value="requests" className="gap-1 px-2 text-[11px] sm:gap-1.5 sm:px-4 sm:text-[13px]">
             درخواست‌ها
             <TabCount n={studentRequests.length} amber={studentRequests.length > 0} />
+          </TabsTrigger>
+          <TabsTrigger value="stats" className="gap-1 px-2 text-[11px] sm:gap-1.5 sm:px-4 sm:text-[13px]">
+            <BarChart3 className="size-4" />
+            گزارش‌ها
           </TabsTrigger>
         </TabsList>
 
@@ -265,6 +400,9 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
                       پایه تحصیلی
                     </TableHead>
                     <TableHead className="text-right text-xs text-muted-foreground">عضویت</TableHead>
+                    <TableHead className="w-12">
+                      <span className="sr-only">عملیات دانش‌آموز</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -291,6 +429,38 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                         عضو از جلسه {toPersianDigitsSafe(s.joinedAtSessionNum)}
+                      </TableCell>
+                      <TableCell className="w-12">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-9 cursor-pointer text-muted-foreground hover:text-foreground"
+                              aria-label={`عملیات ${displayName(s.name, s.lastName)}`}
+                            >
+                              <MoreVertical className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="min-w-40"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                          >
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onSelect={() =>
+                                setRemoveStudent({ id: s.id, name: displayName(s.name, s.lastName) })
+                              }
+                              className="cursor-pointer gap-2 py-2.5"
+                            >
+                              <Trash2 className="size-4" />
+                              حذف از کلاس
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -380,7 +550,40 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
                         )}
                       </div>
 
-                      <ChevronLeft className="hidden size-4 shrink-0 text-muted-foreground transition-all group-hover:-translate-x-0.5 group-hover:text-primary sm:block" />
+                      <div className="flex shrink-0 items-center gap-1">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-9 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
+                              aria-label={`عملیات ${s.name}`}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="min-w-40"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                          >
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onSelect={() => setDeleteSession({ id: s.id, name: s.name })}
+                              className="cursor-pointer gap-2 py-2.5"
+                            >
+                              <Trash2 className="size-4" />
+                              حذف جلسه
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <ChevronLeft className="hidden size-4 shrink-0 text-muted-foreground transition-all group-hover:-translate-x-0.5 group-hover:text-primary sm:block" />
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -430,7 +633,7 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
                         variant="outline"
                         disabled={actingRequestId !== null}
                         onClick={() => respondRequest(r.id, "APPROVE")}
-                        className="h-10 flex-1 cursor-pointer gap-1.5 border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 hover:text-emerald-700 sm:flex-none dark:text-emerald-400 dark:hover:text-emerald-400"
+                        className="h-10 flex-1 cursor-pointer gap-1.5 border-forest/40 text-forest-deep hover:bg-forest/10 hover:text-forest-deep sm:flex-none dark:text-forest-soft dark:hover:text-forest-soft"
                       >
                         <Check className="size-4" />
                         تأیید
@@ -452,6 +655,11 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
             </div>
           )}
         </TabsContent>
+
+        {/* ---------- Stats tab (گزارش‌ها) ---------- */}
+        <TabsContent value="stats" className="space-y-4">
+          <ClassStatsTab classId={classId} />
+        </TabsContent>
       </Tabs>
 
       {/* ---------- Dialogs ---------- */}
@@ -471,6 +679,129 @@ export function ClassDetail({ classId, onBack, onOpenSession }: ClassDetailProps
         nextNumber={nextSessionNumber}
         onCreated={load}
       />
+      <EditClassDialog
+        key={`edit-class-${editSeq}`}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        cls={{ id: detail.id, name: detail.name, schedule: detail.schedule }}
+        onUpdated={load}
+      />
+
+      {/* ---------- Delete class confirmation ---------- */}
+      <AlertDialog
+        open={deleteClassOpen}
+        onOpenChange={(open) => {
+          if (!deletingClass) setDeleteClassOpen(open);
+        }}
+      >
+        <AlertDialogContent className="rounded-2xl sm:max-w-md">
+          <AlertDialogHeader className="text-right sm:text-right">
+            <div className="mx-auto mb-1 grid size-12 place-items-center rounded-2xl bg-destructive/10 text-destructive sm:mx-0">
+              <AlertTriangle className="size-6" />
+            </div>
+            <AlertDialogTitle className="text-xl">حذف کلاس</AlertDialogTitle>
+            <AlertDialogDescription className="text-right leading-7">
+              کلاس و تمام جلسات، حضوروغیاب و دانش‌آموزان آن حذف می‌شود. این عمل قابل بازگشت نیست.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:gap-2">
+            <AlertDialogCancel
+              className="h-11 cursor-pointer rounded-xl"
+              disabled={deletingClass}
+            >
+              لغو
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-11 cursor-pointer gap-1.5 rounded-xl"
+              disabled={deletingClass}
+              onClick={confirmDeleteClass}
+            >
+              {deletingClass ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              {deletingClass ? "در حال حذف…" : "حذف قطعی کلاس"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ---------- Remove student confirmation ---------- */}
+      <AlertDialog
+        open={removeStudent !== null}
+        onOpenChange={(open) => {
+          if (!open && !removingStudent) setRemoveStudent(null);
+        }}
+      >
+        <AlertDialogContent className="rounded-2xl sm:max-w-md">
+          <AlertDialogHeader className="text-right sm:text-right">
+            <div className="mx-auto mb-1 grid size-12 place-items-center rounded-2xl bg-destructive/10 text-destructive sm:mx-0">
+              <UserMinus className="size-6" />
+            </div>
+            <AlertDialogTitle className="text-xl">حذف دانش‌آموز از کلاس</AlertDialogTitle>
+            <AlertDialogDescription className="text-right leading-7">
+              «{removeStudent?.name}» از این کلاس حذف می‌شود و سابقه حضوروغیاب و تکالیف او در
+              جلسات این کلاس پاک می‌شود. این عمل قابل بازگشت نیست.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:gap-2">
+            <AlertDialogCancel
+              className="h-11 cursor-pointer rounded-xl"
+              disabled={removingStudent}
+            >
+              لغو
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-11 cursor-pointer gap-1.5 rounded-xl"
+              disabled={removingStudent}
+              onClick={confirmRemoveStudent}
+            >
+              {removingStudent ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              {removingStudent ? "در حال حذف…" : "حذف از کلاس"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ---------- Delete session confirmation ---------- */}
+      <AlertDialog
+        open={deleteSession !== null}
+        onOpenChange={(open) => {
+          if (!open && !deletingSession) setDeleteSession(null);
+        }}
+      >
+        <AlertDialogContent className="rounded-2xl sm:max-w-md">
+          <AlertDialogHeader className="text-right sm:text-right">
+            <div className="mx-auto mb-1 grid size-12 place-items-center rounded-2xl bg-destructive/10 text-destructive sm:mx-0">
+              <AlertTriangle className="size-6" />
+            </div>
+            <AlertDialogTitle className="text-xl">حذف جلسه</AlertDialogTitle>
+            <AlertDialogDescription className="text-right leading-7">
+              جلسه «{deleteSession?.name}» و حضوروغیاب و تکالیف ثبت‌شده برای آن حذف می‌شود. این
+              عمل قابل بازگشت نیست.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:gap-2">
+            <AlertDialogCancel
+              className="h-11 cursor-pointer rounded-xl"
+              disabled={deletingSession}
+            >
+              لغو
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-11 cursor-pointer gap-1.5 rounded-xl"
+              disabled={deletingSession}
+              onClick={confirmDeleteSession}
+            >
+              {deletingSession ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              {deletingSession ? "در حال حذف…" : "حذف جلسه"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

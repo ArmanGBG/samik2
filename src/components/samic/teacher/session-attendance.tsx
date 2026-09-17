@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { toJalaliLong, toPersianDigitsSafe } from "@/lib/jalali";
 import { useToast } from "@/hooks/use-toast";
 import { api, SessionDetail } from "../api";
-import { AttChip, BackButton, displayName, EmptyState, GhostBadge, initialsOf } from "./bits";
+import { BackButton, displayName, EmptyState, GhostBadge, initialsOf } from "./bits";
 
 type AttStatus = "PRESENT" | "ABSENT" | "LATE";
 
@@ -35,23 +35,47 @@ interface SessionAttendanceProps {
   onBack: () => void;
 }
 
-const STATUS_OPTIONS: { value: AttStatus; label: string; active: string }[] = [
+const STATUS_OPTIONS: { value: AttStatus; label: string; dot: string; selected: string; idle: string }[] = [
   {
     value: "PRESENT",
     label: "حاضر",
-    active: "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-400",
+    dot: "bg-forest",
+    selected:
+      "border-forest/40 bg-forest/15 text-forest-deep hover:bg-forest/20 hover:text-forest-deep dark:text-forest-soft dark:hover:text-forest-soft",
+    idle: "border-border/70 bg-card text-muted-foreground hover:border-forest/40 hover:text-forest-deep dark:hover:text-forest-soft",
   },
   {
     value: "ABSENT",
     label: "غایب",
-    active: "bg-red-500/12 text-red-700 hover:bg-red-500/12 hover:text-red-700 dark:text-red-400 dark:hover:text-red-400",
+    dot: "bg-red-500",
+    selected:
+      "border-red-500/40 bg-red-500/15 text-red-700 hover:bg-red-500/20 hover:text-red-700 dark:text-red-400 dark:hover:text-red-400",
+    idle: "border-border/70 bg-card text-muted-foreground hover:border-red-500/40 hover:text-red-600 dark:hover:text-red-400",
   },
   {
     value: "LATE",
     label: "تأخیر",
-    active: "bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-400",
+    dot: "bg-amber-500",
+    selected:
+      "border-amber-500/40 bg-amber-500/15 text-amber-700 hover:bg-amber-500/20 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-400",
+    idle: "border-border/70 bg-card text-muted-foreground hover:border-amber-500/40 hover:text-amber-600 dark:hover:text-amber-400",
   },
 ];
+
+/** Tinted pill for the live summary counters (حاضر / غایب / تأخیر) */
+function SummaryChip({ label, count, className }: { label: string; count: number; className: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-bold tabular-nums",
+        className
+      )}
+    >
+      {label}
+      <span className="opacity-90">{toPersianDigitsSafe(count)}</span>
+    </span>
+  );
+}
 
 /** جلسه — ثبت حضوروغیاب و تکالیف (Phase 4) */
 export function SessionAttendance({ sessionId, onBack }: SessionAttendanceProps) {
@@ -210,7 +234,7 @@ export function SessionAttendance({ sessionId, onBack }: SessionAttendanceProps)
                   جلسه {toPersianDigitsSafe(session.sessionNum)}
                 </Badge>
               </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground/60">
                 <span className="inline-flex items-center gap-1.5">
                   <CalendarDays className="size-3.5" />
                   {toJalaliLong(session.date)}
@@ -235,15 +259,31 @@ export function SessionAttendance({ sessionId, onBack }: SessionAttendanceProps)
               className="h-10 w-full cursor-pointer gap-1.5 sm:w-auto"
               onClick={markAllPresent}
             >
-              <CheckCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
+              <CheckCheck className="size-4 text-forest-deep dark:text-forest-soft" />
               همه حاضر
             </Button>
             <div className="flex flex-wrap items-center gap-1.5">
-              <AttChip label="حاضر" count={counts.present} tone="present" />
-              <AttChip label="غایب" count={counts.absent} tone="absent" />
-              <AttChip label="تأخیر" count={counts.late} tone="late" />
+              <SummaryChip
+                label="حاضر"
+                count={counts.present}
+                className="border-forest/25 bg-forest/10 text-forest-deep dark:text-forest-soft"
+              />
+              <SummaryChip
+                label="غایب"
+                count={counts.absent}
+                className="border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-400"
+              />
+              <SummaryChip
+                label="تأخیر"
+                count={counts.late}
+                className="border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              />
               {counts.unmarked > 0 ? (
-                <AttChip label="بدون وضعیت" count={counts.unmarked} tone="muted" />
+                <SummaryChip
+                  label="بدون وضعیت"
+                  count={counts.unmarked}
+                  className="border-border bg-muted/70 text-foreground/70"
+                />
               ) : null}
             </div>
           </div>
@@ -273,8 +313,8 @@ export function SessionAttendance({ sessionId, onBack }: SessionAttendanceProps)
             const rec = records[s.id];
             const name = displayName(s.name, s.lastName);
             return (
-              <Card key={s.id} className="border-border/80">
-                <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:gap-6">
+              <Card key={s.id} className="border-border/80 transition-colors hover:bg-accent/25">
+                <CardContent className="flex flex-col gap-3.5 px-4 py-4 sm:px-5 sm:py-5 lg:flex-row lg:items-center lg:gap-6">
                   {/* Column 1 — identity */}
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <div
@@ -288,7 +328,7 @@ export function SessionAttendance({ sessionId, onBack }: SessionAttendanceProps)
                         <span className="truncate font-bold">{name}</span>
                         {!s.profileCompleted ? <GhostBadge /> : null}
                       </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-foreground/60">
                         {s.studentCode ? (
                           <span dir="ltr" className="font-mono">
                             {s.studentCode}
@@ -299,34 +339,37 @@ export function SessionAttendance({ sessionId, onBack }: SessionAttendanceProps)
                     </div>
                   </div>
 
-                  {/* Column 2 — 3-state attendance toggle */}
+                  {/* Column 2 — 3-state attendance toggle (click selected = deselect) */}
                   <div
                     role="group"
                     aria-label={`وضعیت حضور ${name}`}
-                    className="inline-flex w-full overflow-hidden rounded-xl border border-border bg-card sm:w-auto"
+                    className="inline-flex w-full items-stretch gap-1 rounded-xl border border-border/70 bg-muted/40 p-1 sm:w-auto"
                   >
                     {STATUS_OPTIONS.map((o) => {
                       const active = rec?.status === o.value;
                       return (
-                        <Button
+                        <button
                           key={o.value}
                           type="button"
-                          variant="outline"
                           aria-pressed={active}
                           onClick={() => setStatus(s.id, active ? null : o.value)}
                           className={cn(
-                            "h-11 flex-1 cursor-pointer rounded-none border-0 border-s border-border font-bold text-[13px] first:border-s-0 shadow-none sm:min-w-[72px] sm:flex-none sm:px-5",
-                            active ? o.active : "text-muted-foreground"
+                            "inline-flex h-10 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 sm:min-w-[76px] sm:flex-none sm:px-4",
+                            active ? o.selected : o.idle
                           )}
                         >
+                          <span
+                            aria-hidden="true"
+                            className={cn("size-1.5 shrink-0 rounded-full transition-opacity", o.dot, active ? "opacity-100" : "opacity-50")}
+                          />
                           {o.label}
-                        </Button>
+                        </button>
                       );
                     })}
                   </div>
 
-                  {/* Column 3 — assignment switch (default ON) */}
-                  <div className="flex items-center lg:justify-end">
+                  {/* Column 3 — assignment switch (default ON), separated by a subtle divider */}
+                  <div className="flex items-center border-t border-border/60 pt-3.5 lg:border-s lg:border-t-0 lg:pt-0 lg:justify-end">
                     <label
                       htmlFor={`assignment-${s.id}`}
                       className="flex cursor-pointer select-none items-center gap-2.5 py-1.5"
@@ -340,12 +383,12 @@ export function SessionAttendance({ sessionId, onBack }: SessionAttendanceProps)
                       <span className="leading-tight">
                         <span className="block text-sm font-semibold">تکلیف</span>
                         {rec?.assignmentDone ?? true ? (
-                          <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-forest-deep dark:text-forest-soft">
                             <Check className="size-3" />
                             انجام شد
                           </span>
                         ) : (
-                          <span className="mt-0.5 block text-[11px] text-muted-foreground">انجام نشد</span>
+                          <span className="mt-0.5 block text-[11px] text-foreground/60">انجام نشد</span>
                         )}
                       </span>
                     </label>
@@ -367,7 +410,7 @@ export function SessionAttendance({ sessionId, onBack }: SessionAttendanceProps)
                 {toPersianDigitsSafe(counts.unmarked)} بدون وضعیت
               </span>
             ) : (
-              <span className="hidden shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 sm:inline-flex dark:text-emerald-400">
+              <span className="hidden shrink-0 items-center gap-1.5 rounded-full border border-forest/25 bg-forest/10 px-3 py-1 text-xs font-semibold text-forest-deep sm:inline-flex dark:text-forest-soft">
                 <Check className="size-3.5" />
                 همه مشخص‌اند
               </span>
