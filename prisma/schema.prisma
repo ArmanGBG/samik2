@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Samic - Educational Management System
+// Roles: SUPER_ADMIN | INSTITUTE_MANAGER | TEACHER | STUDENT
+// (String enums because SQLite does not support Prisma enums)
+// ============================================================
+
+model User {
+  id        String   @id @default(cuid())
+  mobile    String   @unique // normalized: 09xxxxxxxxx
+
+  role      String   @default("STUDENT") // SUPER_ADMIN | INSTITUTE_MANAGER | TEACHER | STUDENT
+  studentCode String? @unique // STU-XXXXXX
+  teacherCode String? @unique // TCH-XXXXXX
+
+  // common profile
+  name          String?
+  lastName      String?
+  province      String?
+  city          String?
+  profileCompleted Boolean @default(false)
+
+  // teacher profile
+  teachingSubject String?
+  bankCardNo      String?
+  shebaNo         String?
+
+  // student profile
+  // PRIMARY_1..PRIMARY_6 | JUNIOR_7..JUNIOR_9 | HIGH_10..HIGH_12 (with major) | GRADUATED
+  educationLevel String?
+  parentPhone1   String?
+  parentPhone2   String?
+
+  instituteId String? // staff institute (for teachers working at an institute)
+  institute   Institute? @relation("InstituteStaff", fields: [instituteId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  managedInstitute Institute?    @relation("InstituteManager")
+  teacherClasses   Class[]       @relation("ClassTeacher")
+  enrollments      Enrollment[]
+  joinRequests     JoinRequest[]
+  attendances      Attendance[]
+}
+
+model Otp {
+  id        String   @id @default(cuid())
+  mobile    String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([mobile])
+}
+
+model Institute {
+  id        String   @id @default(cuid())
+  name      String
+  managerId String?  @unique
+  manager   User?    @relation("InstituteManager", fields: [managerId], references: [id])
+  createdAt DateTime @default(now())
+
+  staff   User[]  @relation("InstituteStaff")
+  classes Class[]
+}
+
+model Class {
+  id      String  @id // CLS-XXXXXX (also used as join code)
+  name    String
+  schedule String? // free-text weekly schedule
+  qrToken String  @unique
+
+  teacherId   String?
+  teacher     User?    @relation("ClassTeacher", fields: [teacherId], references: [id])
+  instituteId String?
+  institute   Institute? @relation(fields: [instituteId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  enrollments  Enrollment[]
+  sessions     Session[]
+  joinRequests JoinRequest[]
+}
+
+// Student membership in a class.
+// joinedAtSessionNum: the first session number the student participates in.
+// Students added while sessions 1..3 exist get joinedAtSessionNum = 4
+// and must NOT appear in attendance lists of sessions 1,2,3.
+model Enrollment {
+  id                String   @id @default(cuid())
+  studentId         String
+  classId           String
+  joinedAtSessionNum Int     @default(1)
+  status            String   @default("ACTIVE") // ACTIVE | LEFT
+  createdAt         DateTime @default(now())
+
+  student User  @relation(fields: [studentId], references: [id])
+  class   Class @relation(fields: [classId], references: [id])
+
+  @@unique([studentId, classId])
+  @@index([classId])
+}
+
+// direction: STUDENT_REQUEST (student scanned QR / entered CLS code / wants to join)
+//            TEACHER_INVITE  (teacher / institute invited by mobile number)
+model JoinRequest {
+  id          String    @id @default(cuid())
+  studentId   String
+  classId     String
+  direction   String
+  status      String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+
+  student User  @relation(fields: [studentId], references: [id])
+  class   Class @relation(fields: [classId], references: [id])
+
+  @@index([classId, status])
+  @@index([studentId, status])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  classId    String
+  name       String // default: جلسه N (editable)
+  sessionNum Int // auto-increment per class
+  date       DateTime @default(now()) // real moment; displayed in Jalali
+  createdAt  DateTime @default(now())
+
+  class       Class        @relation(fields: [classId], references: [id])
+  attendances Attendance[]
+
+  @@unique([classId, sessionNum])
+}
+
+model Attendance {
+  id             String   @id @default(cuid())
+  sessionId      String
+  studentId      String
+  status         String? // PRESENT | ABSENT | LATE | null (not marked)
+  assignmentDone Boolean  @default(true) // default ON (done)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id])
+  student User    @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@index([sessionId])
+}
